@@ -1,9 +1,12 @@
 package com.revyuk.testchat;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -108,41 +111,47 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        int ip = (((WifiManager) getSystemService(WIFI_SERVICE)).getConnectionInfo()).getIpAddress();
-        String ipAddress = Formatter.formatIpAddress(ip);
+        WifiManager wifi = (WifiManager) getSystemService(WIFI_SERVICE);
+        WifiInfo wifiInfo = wifi.getConnectionInfo();
+        if(wifi.getWifiState() == WifiManager.WIFI_STATE_ENABLED && wifiInfo.getSupplicantState() == SupplicantState.COMPLETED) {
+            int ip = wifiInfo.getIpAddress();
+            String ipAddress = Formatter.formatIpAddress(ip);
 
-        chat = new Chat(MainActivity.this);
-        chat.init(CHAT_PORT, ipAddress);
+            chat = new Chat(MainActivity.this);
+            chat.init(CHAT_PORT, ipAddress);
 
-        list = (ListView) findViewById(R.id.list);
-        list.setOnScrollListener(new AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(AbsListView view, int scrollState) {        }
+            list = (ListView) findViewById(R.id.list);
+            list.setOnScrollListener(new AbsListView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(AbsListView view, int scrollState) {        }
 
-            @Override
-            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
-                if(firstVisibleItem+visibleItemCount==totalItemCount) { auto_scroll_flg = true; } else { auto_scroll_flg = false; }
-            }
-        });
-        cursorAdapter = new MySimpleCursorAdapter(this, R.layout.chat_item, chat.getMessages(),
-                new String[] {"mtype", "message"}, new int[] {R.id.chat_item_type, R.id.chat_item_msg}, 0);
-        list.setAdapter(cursorAdapter);
-        message = (EditText) findViewById(R.id.message);
-        message.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                boolean handled = false;
-                if (actionId == EditorInfo.IME_ACTION_SEND) {
-                    MainActivity.this.onClick(null);
-                    if(getResources().getConfiguration().orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) { handled=true; }
+                @Override
+                public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+                    if(firstVisibleItem+visibleItemCount==totalItemCount) { auto_scroll_flg = true; } else { auto_scroll_flg = false; }
                 }
-                return handled;
-            }
-        });
-        send_btn = (Button) findViewById(R.id.send_button);
-        send_btn.setOnClickListener(this);
-        sender_flg = true;
-        new Thread(new RandomSendRunnable()).start();
+            });
+            cursorAdapter = new MySimpleCursorAdapter(this, R.layout.chat_item, chat.getMessages(),
+                    new String[] {"mtype", "message"}, new int[] {R.id.chat_item_type, R.id.chat_item_msg}, 0);
+            list.setAdapter(cursorAdapter);
+            message = (EditText) findViewById(R.id.message);
+            message.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+                @Override
+                public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                    boolean handled = false;
+                    if (actionId == EditorInfo.IME_ACTION_SEND) {
+                        MainActivity.this.onClick(null);
+                        if(getResources().getConfiguration().orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) { handled=true; }
+                    }
+                    return handled;
+                }
+            });
+            send_btn = (Button) findViewById(R.id.send_button);
+            send_btn.setOnClickListener(this);
+            sender_flg = true;
+            new Thread(new RandomSendRunnable()).start();
+        } else {
+            new AlertDialog.Builder(this).setTitle("Warning").setMessage("WiFi is disconnect. Program correctly does not working.").show();
+        }
     }
 
     class RandomSendRunnable implements Runnable {
